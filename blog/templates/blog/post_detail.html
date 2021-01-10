@@ -61,6 +61,9 @@
 
         <!-- Title -->
         <h1 class="mt-4">{{ post.title}}</h1>
+        {% if post.hook_test %}
+        <h5 class="text-muted">{{ post.hook_test }}</h5>
+        {% endif %}
 
         <!-- Author -->
         <p class="lead">
