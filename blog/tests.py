@@ -1,7 +1,7 @@
 from django.test import TestCase, Client
 from bs4 import BeautifulSoup
 from django.contrib.auth.models import User
-from .models import Post, Category
+from .models import Post, Category, Tag
 
 # Create your tests here.
 
@@ -16,12 +16,20 @@ class TestView(TestCase):
         self.category_2 = Category.objects.create(name='category2', slug='category2')
         # Category의 __init__이 없고, 상속받았으므로, 객체 생성은 superclass 이용해서 하는게 편리
 
+        self.tag_hello = Tag.objects.create(name='hello', slug='hello')
+        self.tag_python = Tag.objects.create(name='python', slug='python')
+        self.tag_python_kor = Tag.objects.create(name='파이썬 공부', slug='파이썬-공부')
+
+        self.tags = [self.tag_hello, self.tag_python, self.tag_python_kor]
+
         self.post_001 = Post.objects.create(
             title='첫 번째 포스트입니다',
             content='Hello World',
             category=self.category_1,
             author=self.user_trump,
         )
+        self.post_001.tags.add(self.tag_hello) # Many2Many라서 이렇게 연결
+        
         self.post_002 = Post.objects.create(
             title='두 번째 포스트입니다',
             content='두번째두번째 두번째',
@@ -33,6 +41,14 @@ class TestView(TestCase):
             content='카테고리가 없는 경우',
             author=self.user_obama,
         )
+        self.post_uncategorized.tags.add(self.tag_python)
+        self.post_uncategorized.tags.add(self.tag_python_kor)
+        # print(self.post_001.tags.all())
+        # print(self.post_uncategorized.tags.all())
+        # print(self.post_001.tags.exists())
+        # print(self.post_002.tags.exists())
+        # print(self.post_uncategorized.tags.exists())
+
 
         self.posts = [self.post_001, self.post_002]
 
@@ -98,20 +114,31 @@ class TestView(TestCase):
         main_area = soup.find('div', id='main-area')
         self.assertNotIn(postNotFoundMessage, main_area.text)
 
+        assert_dict = {
+            0: (self.assertIn, self.assertNotIn, self.assertNotIn),
+            1: (self.assertNotIn, self.assertNotIn, self.assertNotIn),
+            2: (self.assertNotIn, self.assertIn, self.assertIn)
+        }
+
         for i, post in enumerate(self.posts):
             post_card = main_area.find('div', id=f'post-{i+1}')
             self.assertIn(post.title, post_card.text)
             self.assertIn(post.category.name, post_card.text)
+            for j, tag in enumerate(self.tags):
+                assert_dict[i][j](tag.name, post_card.text)
             
         post_uncategorized_card = main_area.find('div', id='post-3')
         self.assertIn(self.post_uncategorized.title, post_uncategorized_card.text)
         self.assertIn(uncategorizedMessage, post_uncategorized_card.text)
+        for j, tag in enumerate(self.tags):
+            assert_dict[2][j](tag.name, post_uncategorized_card.text)
 
         self.assertIn(self.user_trump.username.upper(), main_area.text)
         self.assertIn(self.user_obama.username.upper(), main_area.text)
 
         # 포스트가 없는 경우
         Post.objects.all().delete()
+        # print(f"post list exist? {bool(Post.objects.all().exists())}")
         self.assertEqual(Post.objects.count(), 0)
         response = self.client.get('/blog/')
         soup = BeautifulSoup(response.content, 'html.parser')
@@ -119,7 +146,7 @@ class TestView(TestCase):
         self.assertIn(postNotFoundMessage, main_area.text)
 
 
-    def test_post_detail(self):
+    def est_post_detail(self):
         self.assertEqual(self.post_001.get_absolute_url(), '/blog/1/')
 
         response = self.client.get(self.post_001.get_absolute_url())
