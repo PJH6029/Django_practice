@@ -43,7 +43,7 @@ class TestView(TestCase):
         # 전체 카테고리(or Post) 수: Category(or Post).objects.count()
         # 특정 카테고리의 포스트 수: category_name.post_set.count()
         self.assertIn(f'{self.category_2.name} ({self.category_2.post_set.count()})', categories_card.text)
-        self.assertIn(f'미분류 (1)', categories_card.text)
+        self.assertIn(f'미분류 ({Post.objects.filter(category=None).count()})', categories_card.text)
         # TODO: 미분류 (uncategorized_post_number) print
 
 
@@ -64,6 +64,22 @@ class TestView(TestCase):
 
         about_me_btn = navbar.find('a', text='About Me')
         self.assertEqual(about_me_btn.attrs['href'], '/about_me/')
+
+    def test_category_page(self):
+        response = self.client.get(self.category_1.get_absolute_url())
+        self.assertEqual(response.status_code, 200)
+
+        soup = BeautifulSoup(response.content, 'html.parser')
+        self.navbar_test(soup)
+        self.category_card_test(soup)
+
+        self.assertIn(self.category_1.name, soup.h1.text)
+
+        main_area = soup.find('div', id='main-area')
+        self.assertIn(self.category_1.name, main_area.text)
+        self.assertIn(self.post_001.title, main_area.text)
+        self.assertNotIn(self.post_002.title, main_area.text)
+        self.assertNotIn(self.post_uncategorized.title, main_area.text)
 
     def test_post_list(self):
         postNotFoundMessage = '아직 게시물이 없습니다'
@@ -103,33 +119,21 @@ class TestView(TestCase):
         self.assertIn(postNotFoundMessage, main_area.text)
 
 
-    '''
     def test_post_detail(self):
-        # 1.1 포스트가 하나 있음
-        post_001 = Post.objects.create(
-            title='첫 번째 포스트',
-            content='Hello World',
-            author=self.user_trump,
-        )
-        self.assertEqual(Post.objects.count(), 1)
-        # 1.2 그 포스트의 url은 '/blog/1/'임임
-        self.assertEqual(post_001.get_absolute_url(), '/blog/1/')
+        self.assertEqual(self.post_001.get_absolute_url(), '/blog/1/')
 
-        # 2 첫 번째 포스트의 상세 페이지 테스트
-        # 2.1 첫 번째 포스트의 url로 접근하면 정상적으로 작동
-        response = self.client.get(post_001.get_absolute_url())
+        response = self.client.get(self.post_001.get_absolute_url())
         self.assertEqual(response.status_code, 200)
         soup = BeautifulSoup(response.content, 'html.parser')
-        # 2.2 포스트 목록 페이지와 똑같은 내비게이션 바가 존재
+
         self.navbar_test(soup)
-        # 2.3 첫 번째 포스트의 제목이 웹 브라우저 탭 타이틀에 있음
-        self.assertIn(post_001.title, soup.title.text)
-        # 2.4 첫 번째 포스트의 제목이 포스트 영역에 있음
+        self.category_card_test(soup)
+
+        self.assertIn(self.post_001.title, soup.title.text)
+
         main_area = soup.find('div', id='main-area')
         post_area = main_area.find('div', id='post-area')
-        self.assertIn(post_001.title, post_area.text)
-        # 2.5 첫 번째 포스트의 작성자가 포스트 영역에 있음
+        self.assertIn(self.post_001.title, post_area.text)
+
         self.assertIn(self.user_trump.username.upper(), post_area.text)
-        # 2.6 첫 번째 포스트의 내용이 포스트 영역에 있음
-        self.assertIn(post_001.content, post_area.text)
-    '''
+        self.assertIn(self.post_001.content, post_area.text)
