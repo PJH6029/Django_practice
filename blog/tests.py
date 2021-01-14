@@ -62,7 +62,6 @@ class TestView(TestCase):
         self.assertIn(f'미분류 ({Post.objects.filter(category=None).count()})', categories_card.text)
         # TODO: 미분류 (uncategorized_post_number) print
 
-
     def navbar_test(self, soup):
         # test로 시작하면 함수 내부에서 test함수로 인식해버림
         navbar = soup.nav
@@ -80,6 +79,23 @@ class TestView(TestCase):
 
         about_me_btn = navbar.find('a', text='About Me')
         self.assertEqual(about_me_btn.attrs['href'], '/about_me/')
+
+    def test_tag_page(self):
+        response = self.client.get(self.tag_hello.get_absolute_url())
+        self.assertEqual(response.status_code, 200)
+
+        soup = BeautifulSoup(response.content, 'html.parser')
+        self.navbar_test(soup)
+        self.category_card_test(soup)
+
+        self.assertIn(self.tag_hello.name, soup.h1.text)
+
+        main_area = soup.find('div', id='main-area')
+        self.assertIn(self.tag_hello.name, main_area.text)
+        self.assertIn(self.post_001.title, main_area.text)
+        self.assertNotIn(self.post_002.title, main_area.text)
+        self.assertNotIn(self.post_uncategorized.title, main_area.text)
+
 
     def test_category_page(self):
         response = self.client.get(self.category_1.get_absolute_url())
@@ -145,8 +161,7 @@ class TestView(TestCase):
         main_area = soup.find('div', id='main-area')
         self.assertIn(postNotFoundMessage, main_area.text)
 
-
-    def est_post_detail(self):
+    def test_post_detail(self):
         self.assertEqual(self.post_001.get_absolute_url(), '/blog/1/')
 
         response = self.client.get(self.post_001.get_absolute_url())
