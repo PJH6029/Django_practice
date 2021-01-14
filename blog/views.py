@@ -1,11 +1,13 @@
-from django.shortcuts import render
-from django.views.generic import ListView, DetailView
+from django.shortcuts import render, redirect
+from django.views.generic import ListView, DetailView, CreateView
+from django.contrib.auth.mixins import LoginRequiredMixin
 from .models import Post, Category, Tag
 
 # Create your views here.
 # context는 dict타입
 # 기본적으로 super의 get_context_date에 의해서 models.py에 정의된 Post를 불러옴(post_list = Post.objects.all())
 # 추가로 categories 등을 추가시킬 수 있
+
 
 class PostList(ListView):
     model = Post
@@ -20,6 +22,7 @@ class PostList(ListView):
 
         return context
 
+
 class PostDetail(DetailView):
     # 특정 post의 category는 Category Class에서 관리하는게 아닌(->이렇게 되면 Category 하나에 여러개의 포스트 pk를 저장해야함), 각 Post에서 관리
     model = Post
@@ -30,6 +33,23 @@ class PostDetail(DetailView):
         context['no_category_post_count'] = Post.objects.filter(category=None).count()
 
         return context
+
+
+class PostCreate(LoginRequiredMixin, CreateView):
+    model = Post
+    fields = ['title', 'hook_text', 'content', 'head_image', 'file_upload', 'category']
+    # author: 이미 로그인 되어있으면 채울 필요 x
+    # created_at: 현재시간이므로 필요 x
+    # tags: 나중에 방문자가 텍스트로 따로 입력하도록 구현 방법 달리함
+
+    def form_valid(self, form):
+        current_user = self.request.user
+        if current_user.is_authenticated:
+            form.instance.author = current_user
+            return super(PostCreate, self).form_valid(form)
+        else:
+            return redirect('/blog/')
+
 
 def category_page(request, slug):
     if slug == 'no_category':
