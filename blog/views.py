@@ -1,7 +1,9 @@
 from django.shortcuts import render, redirect
-from django.views.generic import ListView, DetailView, CreateView
+from django.views.generic import ListView, DetailView, CreateView, UpdateView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from .models import Post, Category, Tag
+from django.core.exceptions import PermissionDenied
+from django.utils.text import slugify
 
 # Create your views here.
 # context는 dict타입
@@ -36,6 +38,8 @@ class PostDetail(DetailView):
 
 
 class PostCreate(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    # LoginRequiredMixin: 로그인한 사용자만 페이지를 접근할 수 있게 해줌
+    # UserPassesTestMixin: 권한 있는 사용자만 페이지를 접근할 수 있게 해줌
     model = Post
     fields = ['title', 'hook_text', 'content', 'head_image', 'file_upload', 'category']
     # author: 이미 로그인 되어있으면 채울 필요 x
@@ -49,9 +53,43 @@ class PostCreate(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         current_user = self.request.user
         if current_user.is_authenticated and (current_user.is_staff or current_user.is_superuser):
             form.instance.author = current_user
-            return super(PostCreate, self).form_valid(form)
+            response = super(PostCreate, self).form_valid(form) # Post에 pk를 부여해서 db에 저장해놓기 위해 먼저 실행
+
+            tags_str = self.request.POST.get('tags_str') # POST로 전달된 정보 중 name='tags_str'인 input값을 가져옴 
+            if tags_str:
+                tags_str = tags_str.strip()
+
+                tags_str = tags_str.replace(',', ';')
+                tags_list = tags_str.split(';')
+
+                for t in tags_list:
+                    t = t.strip()
+                    tag, is_tag_created = Tag.objects.get_or_create(name=t)
+                    if is_tag_created:
+                        tag.slug = slugify(t, allow_unicode=True)
+                        tag.save()
+                    self.object.tags.add(tag)
+
+            return response
         else:
             return redirect('/blog/')
+
+
+class PostUpdate(LoginRequiredMixin, UpdateView):
+    # UserPassesTestMixin 안하는 이유? -> 권한이 아니라 그냥 본인이어야함! 그래서 dispatch 사용
+    model = Post
+    fields = ['title', 'hook_text', 'content', 'head_image', 'file_upload', 'category', 'tags']
+
+    template_name = 'blog/post_update_form.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        # TODO: 왜 current_user = self.request.user 후 current_user.is.authenticated 라고 쓰지 않는가?
+        if request.user.is_authenticated and request.user == self.get_object().author:
+            # self.get_object() == Post.objects.get(pk=pk)
+            return super(PostUpdate, self).dispatch(request, *args, **kwargs)
+        else:
+            raise PermissionDenied
+
 
 
 def category_page(request, slug):

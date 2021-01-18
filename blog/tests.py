@@ -98,7 +98,6 @@ class TestView(TestCase):
         self.assertNotIn(self.post_002.title, main_area.text)
         self.assertNotIn(self.post_uncategorized.title, main_area.text)
 
-
     def test_category_page(self):
         response = self.client.get(self.category_1.get_absolute_url())
         self.assertEqual(response.status_code, 200)
@@ -204,14 +203,72 @@ class TestView(TestCase):
         main_area = soup.find('div', id='main-area')
         self.assertIn('Create New Post', main_area.text)
 
-        # url 마지막에 /이 붙는 이유?
+        tag_str_input = main_area.find('input', id='id_tags_str')
+        self.assertTrue(tag_str_input)
+
+        # TODO: url 마지막에 /이 붙는 이유?
         self.client.post(
             '/blog/create_post/',
             {
                 'title': 'Post Form 만들기',
                 'content': "Post form page building",
+                'tags_str': 'new tag; 한글 태그, python'
             }
         )
+        self.assertEqual(Post.objects.count(), 4)
         last_post = Post.objects.last()
         self.assertEqual(last_post.title, "Post Form 만들기")
         self.assertEqual(last_post.author.username, 'obama')
+
+        self.assertEqual(last_post.tags.count(), 3)
+        self.assertTrue(Tag.objects.get(name='new tag'))
+        self.assertTrue(Tag.objects.get(name='한글 태그'))
+        self.assertTrue(Tag.objects.get(name='python'))
+        self.assertEqual(Tag.objects.count(), 5)
+
+
+    def test_update_post(self):
+        update_post_url = f'/blog/update_post/{self.post_uncategorized.pk}/'
+
+        # login x
+        response = self.client.get(update_post_url)
+        self.assertNotEqual(response.status_code, 200)
+
+        # non-staff login
+        self.assertNotEqual(self.post_uncategorized.author, self.user_trump)
+        self.client.login(
+            username=self.user_trump.username,
+            passowrd='somepassword'
+        )
+        response = self.client.get(update_post_url)
+        self.assertEqual(response.status_code, 403)
+
+        # staff login
+        self.client.login(
+            username=self.user_obama.username,
+            password='somepassword'
+        )
+        response = self.client.get(update_post_url)
+        self.assertEqual(response.status_code, 200)
+
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        self.assertEqual('Edit Post - Blog', soup.title.text)
+        main_area = soup.find('div', id='main-area')
+        self.assertIn('Edit Post', main_area.text)
+
+        response = self.client.post(
+            update_post_url,
+            {
+                'title': '세 번째 포스트 수정',
+                'content': 'hello world!',
+                'category': self.category_1.pk,
+            },
+            follow=True
+        )
+
+        soup = BeautifulSoup(response.content, 'html.parser')
+        main_area = soup.find('div', id='main-area')
+        self.assertIn('세 번째 포스트 수정', main_area.text)
+        self.assertIn('hello world!', main_area.text)
+        self.assertIn(self.category_1.name, main_area.text)
