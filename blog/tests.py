@@ -43,8 +43,10 @@ class TestView(TestCase):
             content='카테고리가 없는 경우',
             author=self.user_obama,
         )
-        self.post_uncategorized.tags.add(self.tag_python)
+        # TODO: QuerySet order
         self.post_uncategorized.tags.add(self.tag_python_kor)
+        self.post_uncategorized.tags.add(self.tag_python)
+
         # print(self.post_001.tags.all())
         # print(self.post_uncategorized.tags.all())
         # print(self.post_001.tags.exists())
@@ -257,18 +259,43 @@ class TestView(TestCase):
         main_area = soup.find('div', id='main-area')
         self.assertIn('Edit Post', main_area.text)
 
+        tags_str_input = main_area.find('input', id='id_tags_str')
+        self.assertTrue(tags_str_input)
+        self.assertIn('python; 파이썬 공부', tags_str_input.attrs['value'])
+        '''
         response = self.client.post(
             update_post_url,
             {
                 'title': '세 번째 포스트 수정',
                 'content': 'hello world!',
                 'category': self.category_1.pk,
+                # 'tags_str': '파이썬 공부; 한글 태그, some tag'
+                'tags_str': 'python; 한글 태그, some tag'
+            },
+            follow=True
+        )
+        '''
+        response = self.client.post(
+            update_post_url,
+            {
+                'title': '세 번째 포스트 수정',
+                'content': 'hello world!',
+                'category': self.category_1.pk,
+                # 'tags_str': '파이썬 공부; 한글 태그, some tag'
+                'tags_str': 'python; 한글 태그, some tag'
             },
             follow=True
         )
 
+        # response = self.client.get(update_post_url)
         soup = BeautifulSoup(response.content, 'html.parser')
         main_area = soup.find('div', id='main-area')
+        print(main_area.text)
         self.assertIn('세 번째 포스트 수정', main_area.text)
         self.assertIn('hello world!', main_area.text)
         self.assertIn(self.category_1.name, main_area.text)
+        self.assertIn('파이썬 공부', main_area.text)
+        # TODO: 파이썬 공부 태그는 이미 있던거라 패스해야하는데 안됨. 확인해보니 main_area.text에 comment들이 들어있음
+        self.assertIn('한글 태그', main_area.text)
+        self.assertIn('some tag', main_area.text)
+        self.assertIn('python', main_area.text)
