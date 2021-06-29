@@ -228,7 +228,6 @@ class TestView(TestCase):
         self.assertTrue(Tag.objects.get(name='python'))
         self.assertEqual(Tag.objects.count(), 5)
 
-
     def test_update_post(self):
         update_post_url = f'/blog/update_post/{self.post_uncategorized.pk}/'
 
@@ -257,45 +256,32 @@ class TestView(TestCase):
 
         self.assertEqual('Edit Post - Blog', soup.title.text)
         main_area = soup.find('div', id='main-area')
+        # 왜 tags 넣지도 않았는데 Tags 리스트가 만들어져? 시블[ㅔㄹ : 이 포스트의 tag가 아니라, 선택 가능한 tag 리스트를 보여준 것
+        # print(main_area.text)
         self.assertIn('Edit Post', main_area.text)
 
         tags_str_input = main_area.find('input', id='id_tags_str')
         self.assertTrue(tags_str_input)
         self.assertIn('python; 파이썬 공부', tags_str_input.attrs['value'])
-        '''
-        response = self.client.post(
-            update_post_url,
-            {
-                'title': '세 번째 포스트 수정',
-                'content': 'hello world!',
-                'category': self.category_1.pk,
-                # 'tags_str': '파이썬 공부; 한글 태그, some tag'
-                'tags_str': 'python; 한글 태그, some tag'
-            },
-            follow=True
-        )
-        '''
-        response = self.client.post(
-            update_post_url,
-            {
-                'title': '세 번째 포스트 수정',
-                'content': 'hello world!',
-                'category': self.category_1.pk,
-                # 'tags_str': '파이썬 공부; 한글 태그, some tag'
-                'tags_str': 'python; 한글 태그, some tag'
-            },
-            follow=True
-        )
 
-        # response = self.client.get(update_post_url)
+        response = self.client.post(
+            update_post_url,
+            {
+                'title': '세번째 포스트를 수정했습니다. ',
+                'content': '안녕 세계? 우리는 하나!',
+                'category': self.category_1.pk,
+                'tags_str': '파이썬 공부; 한글 태그, some tag'
+            },
+            follow=True
+        )
+        # update post는 update 이후 post detail page로 자동 redirect됨
+
         soup = BeautifulSoup(response.content, 'html.parser')
         main_area = soup.find('div', id='main-area')
-        print(main_area.text)
-        self.assertIn('세 번째 포스트 수정', main_area.text)
-        self.assertIn('hello world!', main_area.text)
+        self.assertIn('세번째 포스트를 수정했습니다.', main_area.text)
+        self.assertIn('안녕 세계? 우리는 하나!', main_area.text)
         self.assertIn(self.category_1.name, main_area.text)
         self.assertIn('파이썬 공부', main_area.text)
-        # TODO: 파이썬 공부 태그는 이미 있던거라 패스해야하는데 안됨. 확인해보니 main_area.text에 comment들이 들어있음
         self.assertIn('한글 태그', main_area.text)
         self.assertIn('some tag', main_area.text)
-        self.assertIn('python', main_area.text)
+        self.assertNotIn('python', main_area.text)

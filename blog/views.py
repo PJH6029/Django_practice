@@ -70,7 +70,7 @@ class PostCreate(LoginRequiredMixin, UserPassesTestMixin, CreateView):
                         tag.save()
                     self.object.tags.add(tag)
 
-            return response
+            return response  # 새로 만든 포스트의 페이지로 redirect
         else:
             return redirect('/blog/')
 
@@ -81,6 +81,26 @@ class PostUpdate(LoginRequiredMixin, UpdateView):
     fields = ['title', 'hook_text', 'content', 'head_image', 'file_upload', 'category', 'tags']
 
     template_name = 'blog/post_update_form.html'
+
+    def get_context_data(self, **kwargs):
+        context = super(PostUpdate, self).get_context_data()
+        # print('update ' + str(self.object.tags.exists()))
+        if self.object.tags.exists():
+            # print(self.object.tags.all())
+            tags_str_list = list()
+            for t in self.object.tags.all():
+                tags_str_list.append(t.name)
+            context['tags_str_default'] = '; '.join(tags_str_list)
+
+        return context
+
+    def dispatch(self, request, *args, **kwargs):
+        # TODO: 왜 current_user = self.request.user 후 current_user.is.authenticated 라고 쓰지 않는가?
+        if request.user.is_authenticated and request.user == self.get_object().author:
+            # self.get_object() == Post.objects.get(pk=pk)
+            return super(PostUpdate, self).dispatch(request, *args, **kwargs)
+        else:
+            raise PermissionDenied
 
     def form_valid(self, form):
         response = super(PostUpdate, self).form_valid(form)
@@ -101,24 +121,6 @@ class PostUpdate(LoginRequiredMixin, UpdateView):
                 self.object.tags.add(tag)
 
         return response
-
-    def get_context_data(self, **kwargs):
-        context = super(PostUpdate, self).get_context_data()
-        if self.object.tags.exists():
-            tags_str_list = list()
-            for t in self.object.tags.all():
-                tags_str_list.append(t.name)
-            context['tags_str_default'] = '; '.join(tags_str_list)
-
-        return context
-
-    def dispatch(self, request, *args, **kwargs):
-        # TODO: 왜 current_user = self.request.user 후 current_user.is.authenticated 라고 쓰지 않는가?
-        if request.user.is_authenticated and request.user == self.get_object().author:
-            # self.get_object() == Post.objects.get(pk=pk)
-            return super(PostUpdate, self).dispatch(request, *args, **kwargs)
-        else:
-            raise PermissionDenied
 
 
 
