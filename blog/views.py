@@ -123,7 +123,6 @@ class PostUpdate(LoginRequiredMixin, UpdateView):
         return response
 
 
-
 def category_page(request, slug):
     if slug == 'no_category':
         category = '미분류'
