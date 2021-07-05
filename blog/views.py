@@ -6,6 +6,7 @@ from .models import Post, Category, Tag, Comment
 from .forms import CommentForm
 from django.core.exceptions import PermissionDenied
 from django.utils.text import slugify
+from django.db.models import Q
 
 # Create your views here.
 # context는 dict타입
@@ -25,6 +26,23 @@ class PostList(ListView):
         # objects.filter(): 여러개 걸러냄
         # objects.get(): unique한 variable(ex. pk)로 하나만 가져옴
 
+        return context
+
+
+class PostSearch(PostList):
+    paginate_by = None
+
+    def get_queryset(self):
+        q = self.kwargs['q']
+        post_list = Post.objects.filter(
+            Q(title__contains=q) | Q(tags__name__contains=q)
+        ).distinct()
+        return post_list
+
+    def get_context_data(self, **kwargs):
+        context = super(PostSearch, self).get_context_data()
+        q = self.kwargs['q']
+        context['search_info'] = f'Search: {q} ({self.get_queryset().count()})'
         return context
 
 
