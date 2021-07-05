@@ -1,0 +1,16 @@
+body {
+    background: url('/static/single_pages/images/landing_image.png') no-repeat center center fixed;
+    /* TODO /single_pages/는 원래 없음 -> 빨간줄은 뜨는데 이미지는 나오네 ㅋㅋ */
+    -webkit-background-size: cover;
+    -moz-background-size: cover;
+    background-size: cover;
+    -o-background-size: cover;
+}
+
+section {
+    margin-bottom: 150px;
+}
+
+.card{
+    background-color: rgba(255, 255, 255, 0.6);
+}
